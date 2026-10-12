@@ -444,11 +444,11 @@ mod tests {
 
     #[test]
     fn update_response_verbose_ok() {
-        let (got_ip, changed) = parse_update_response("OK\n211.234.10.20\n\nUPDATED").unwrap();
-        assert_eq!(got_ip.as_deref(), Some("211.234.10.20"));
+        let (got_ip, changed) = parse_update_response("OK\n203.0.113.20\n\nUPDATED").unwrap();
+        assert_eq!(got_ip.as_deref(), Some("203.0.113.20"));
         assert!(changed);
 
-        let (_, changed) = parse_update_response("OK\r\n211.234.10.20\r\n\r\nNOCHANGE\r\n").unwrap();
+        let (_, changed) = parse_update_response("OK\r\n203.0.113.20\r\n\r\nNOCHANGE\r\n").unwrap();
         assert!(!changed);
 
         let (got_ip, _) = parse_update_response("OK").unwrap();
@@ -464,16 +464,16 @@ mod tests {
 
     #[test]
     fn trace_and_plain_ip() {
-        let trace = "fl=123\nh=1.1.1.1\nip=211.234.10.20\nts=1\n";
-        assert_eq!(parse_trace_ip(trace), Some(ip("211.234.10.20")));
+        let trace = "fl=123\nh=1.1.1.1\nip=203.0.113.20\nts=1\n";
+        assert_eq!(parse_trace_ip(trace), Some(ip("203.0.113.20")));
         assert_eq!(parse_trace_ip("ip=2001:db8::1\n"), None);
-        assert_eq!(parse_plain_ip(" 211.234.10.20\n"), Some(ip("211.234.10.20")));
+        assert_eq!(parse_plain_ip(" 203.0.113.20\n"), Some(ip("203.0.113.20")));
     }
 
     #[test]
     fn doh_parsing() {
-        let ok = r#"{"Status":0,"Answer":[{"name":"x.duckdns.org","type":5,"TTL":60,"data":"y."},{"name":"x.duckdns.org","type":1,"TTL":60,"data":"1.2.3.4"}]}"#;
-        assert_eq!(parse_doh(ok).unwrap(), Some(ip("1.2.3.4")));
+        let ok = r#"{"Status":0,"Answer":[{"name":"x.duckdns.org","type":5,"TTL":60,"data":"y."},{"name":"x.duckdns.org","type":1,"TTL":60,"data":"192.0.2.4"}]}"#;
+        assert_eq!(parse_doh(ok).unwrap(), Some(ip("192.0.2.4")));
         assert_eq!(parse_doh(r#"{"Status":0}"#).unwrap(), None);
         assert_eq!(parse_doh(r#"{"Status":3}"#).unwrap(), None);
         assert!(parse_doh(r#"{"Status":2}"#).is_err());
@@ -482,24 +482,24 @@ mod tests {
 
     #[test]
     fn judge_states() {
-        let public = Some(ip("5.6.7.8"));
+        let public = Some(ip("198.51.100.8"));
         let now = 1_000_000;
-        assert_eq!(judge("home", public, &Ok(Some(ip("5.6.7.8"))), None, now), "match");
-        assert_eq!(judge("home", public, &Ok(Some(ip("1.2.3.4"))), None, now), "mismatch");
+        assert_eq!(judge("home", public, &Ok(Some(ip("198.51.100.8"))), None, now), "match");
+        assert_eq!(judge("home", public, &Ok(Some(ip("192.0.2.4"))), None, now), "mismatch");
         assert_eq!(judge("home", public, &Ok(None), None, now), "mismatch");
         assert_eq!(judge("home", public, &Err("x".into()), None, now), "unknown");
-        assert_eq!(judge("home", None, &Ok(Some(ip("1.2.3.4"))), None, now), "unknown");
+        assert_eq!(judge("home", None, &Ok(Some(ip("192.0.2.4"))), None, now), "unknown");
 
-        let fresh = record(now - 10_000, true, Some("5.6.7.8"), false);
-        assert_eq!(judge("home", public, &Ok(Some(ip("1.2.3.4"))), Some(&fresh), now), "pending");
+        let fresh = record(now - 10_000, true, Some("198.51.100.8"), false);
+        assert_eq!(judge("home", public, &Ok(Some(ip("192.0.2.4"))), Some(&fresh), now), "pending");
         // 다른 도메인을 갱신한 기록은 전파 중으로 치지 않습니다.
-        assert_eq!(judge("nas", public, &Ok(Some(ip("1.2.3.4"))), Some(&fresh), now), "mismatch");
+        assert_eq!(judge("nas", public, &Ok(Some(ip("192.0.2.4"))), Some(&fresh), now), "mismatch");
 
-        let stale = record(now - PROPAGATION_GRACE_MS - 1, true, Some("5.6.7.8"), false);
-        assert_eq!(judge("home", public, &Ok(Some(ip("1.2.3.4"))), Some(&stale), now), "mismatch");
+        let stale = record(now - PROPAGATION_GRACE_MS - 1, true, Some("198.51.100.8"), false);
+        assert_eq!(judge("home", public, &Ok(Some(ip("192.0.2.4"))), Some(&stale), now), "mismatch");
 
         let failed = record(now - 10_000, false, None, false);
-        assert_eq!(judge("home", public, &Ok(Some(ip("1.2.3.4"))), Some(&failed), now), "mismatch");
+        assert_eq!(judge("home", public, &Ok(Some(ip("192.0.2.4"))), Some(&failed), now), "mismatch");
     }
 
     #[test]
@@ -521,10 +521,10 @@ mod tests {
     fn snapshot_states() {
         let now = 1_000_000;
         let obs = Observation {
-            public_ip: Ok(ip("5.6.7.8")),
+            public_ip: Ok(ip("198.51.100.8")),
             resolved: vec![
-                ("home".into(), Ok(Some(ip("5.6.7.8")))),
-                ("nas".into(), Ok(Some(ip("1.2.3.4")))),
+                ("home".into(), Ok(Some(ip("198.51.100.8")))),
+                ("nas".into(), Ok(Some(ip("192.0.2.4")))),
             ],
         };
         assert_eq!(build_snapshot(&obs, None, false, true, now).state, "Mismatch");
@@ -532,14 +532,14 @@ mod tests {
 
         let offline = Observation {
             public_ip: Err("공인 IP 확인 실패".into()),
-            resolved: vec![("home".into(), Ok(Some(ip("5.6.7.8"))))],
+            resolved: vec![("home".into(), Ok(Some(ip("198.51.100.8"))))],
         };
         let snap = build_snapshot(&offline, None, false, true, now);
         assert_eq!(snap.state, "FetchError");
         assert_eq!(snap.domains[0].status, "unknown");
         assert!(snap.error.is_some());
 
-        let empty = Observation { public_ip: Ok(ip("5.6.7.8")), resolved: vec![] };
+        let empty = Observation { public_ip: Ok(ip("198.51.100.8")), resolved: vec![] };
         assert_eq!(build_snapshot(&empty, None, false, true, now).state, "NotConfigured");
     }
 
