@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      /* styles.css의 위젯용 투명 배경이 적용되기 전에 흰 화면이 번쩍이지 않게 미리 깔아둡니다. */
+      body.settings-window-body {
+        margin: 0;
+        background: #16181c;
+        color: #e8eaed;
+      }
+    </style>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DuckDNS — 설정</title>
+    <script type="module" src="/src/settings.ts" defer></script>
+  </head>
+  <body class="settings-window-body">
+    <div class="settings-window">
+      <header class="settings-header">
+        <div class="settings-header-row">
+          <h1>DuckDNS 설정</h1>
+          <span id="connection-badge" class="settings-badge">—</span>
+        </div>
+        <p class="settings-subtitle">토큰·도메인과 갱신 방식을 관리합니다.</p>
+      </header>
+
+      <div id="action-status" class="settings-status hidden" role="status" aria-live="polite"></div>
+
+      <section class="settings-card">
+        <h2 class="settings-card-title">DuckDNS</h2>
+        <label class="settings-input-group" for="token-input">
+          <span class="settings-input-label">토큰</span>
+          <input
+            id="token-input"
+            class="settings-input"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="바꿀 때만 입력"
+          />
+        </label>
+        <p class="settings-detail" id="token-state">불러오는 중…</p>
+        <p class="settings-hint">
+          duckdns.org에 로그인하면 화면 위쪽에 token 값이 있습니다. 토큰은 Windows 자격 증명
+          관리자에 저장되고 여기엔 끝 4자리만 보입니다.
+        </p>
+
+        <label class="settings-input-group" for="domains-input">
+          <span class="settings-input-label">도메인</span>
+          <textarea
+            id="domains-input"
+            class="settings-input"
+            rows="3"
+            spellcheck="false"
+            placeholder="myhome, nas"
+          ></textarea>
+        </label>
+        <p class="settings-hint">
+          하위 이름만 쓰거나 <code>myhome.duckdns.org</code>처럼 전체를 붙여도 됩니다. 쉼표나
+          줄바꿈으로 여러 개를 적습니다.
+        </p>
+
+        <div class="settings-actions">
+          <button id="btn-save" class="btn primary" type="button">저장</button>
+          <button id="btn-clear-token" class="btn secondary" type="button">토큰 지우기</button>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <h2 class="settings-card-title">갱신</h2>
+        <ul id="ip-summary" class="ip-summary"></ul>
+        <p class="settings-detail" id="last-update">갱신 기록 없음</p>
+        <div class="settings-actions">
+          <button id="btn-update" class="btn primary" type="button">지금 갱신</button>
+          <button id="btn-refresh" class="btn secondary" type="button">다시 확인</button>
+        </div>
+        <label class="settings-toggle">
+          <input id="auto-update-toggle" type="checkbox" />
+          <span>IP가 바뀌면 자동 갱신</span>
+        </label>
+        <p class="settings-hint">5분마다 확인할 때 등록 IP가 내 IP와 다르면 바로 갱신합니다.</p>
+      </section>
+
+      <section class="settings-card">
+        <h2 class="settings-card-title">위젯</h2>
+        <label class="settings-toggle">
+          <input id="always-on-top-toggle" type="checkbox" />
+          <span>항상 다른 창 위에 표시</span>
+        </label>
+        <p class="settings-hint">끄면 일반 창처럼 동작해 다른 창이 위젯 위로 올라올 수 있습니다.</p>
+      </section>
+
+      <section class="settings-card">
+        <h2 class="settings-card-title">앱</h2>
+        <label class="settings-toggle">
+          <input id="autostart-toggle" type="checkbox" />
+          <span>Windows 시작 시 자동 실행</span>
+        </label>
+        <p id="autostart-hint" class="settings-hint hidden"></p>
+      </section>
+
+      <footer class="settings-footer settings-footer--window">
+        <button id="btn-close" class="btn primary wide" type="button">닫기</button>
+      </footer>
+    </div>
+  </body>
+</html>
