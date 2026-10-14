@@ -1,6 +1,7 @@
 mod config;
 mod duckdns;
 mod install;
+mod tray;
 
 use config::{
     config_view, delete_token, load_config, parse_domains, save_config as write_config,
@@ -145,7 +146,7 @@ pub fn run() {
 
     tauri::Builder::default()
         // 다른 플러그인보다 먼저 등록해야 두 번째 실행이 초기화 전에 끝납니다.
-        // 작업 표시줄 버튼이 없어 가려진 위젯을 꺼낼 길이 재실행뿐이라,
+        // 트레이 아이콘 말고 재실행으로도 가려진 위젯을 꺼낼 수 있게,
         // 새로 띄우지 않고 기존 창을 앞으로 가져옵니다.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -190,7 +191,8 @@ pub fn run() {
                 let _ = window.hide();
             }
         })
-        .setup(|_app| {
+        .setup(|app| {
+            tray::install(app)?;
             cleanup_stale_debug_autostart();
             // Release builds keep a stable copy under LOCALAPPDATA for shortcuts/autostart.
             let _ = ensure_installed_release();
