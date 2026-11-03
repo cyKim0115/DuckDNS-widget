@@ -11,6 +11,9 @@
   --hot: #e0524a;
   --fill: #5b9fd4;
   --border: rgba(255, 255, 255, 0.08);
+  /* 배경 흐림이 켜졌을 때의 카드. 0.85 아래로 내리면 흰 브라우저 위에서
+     11px 회색 글자가 대비 4.5:1 밑으로 떨어집니다(실측). */
+  --bg-glass: rgba(22, 24, 28, 0.85);
   font-family: "Segoe UI", "Malgun Gothic", sans-serif;
 }
 
@@ -36,12 +39,63 @@ body {
 .widget {
   padding: 10px 12px 8px;
   border-radius: 12px;
+  /* 배경 흐림을 켜면 캡처 화면도 이 곡선으로 잘립니다(overflow: hidden). */
+  corner-shape: squircle;
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--fg);
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* ── 배경 흐림 ─────────────────────────────────────────────────────
+   glass.rs가 위젯 뒤 화면을 캡처해 보내면 main.ts가 캔버스에 그리고, 여기서 흐립니다.
+   쌓는 순서는 캔버스(-2) → 틴트(::before, -1) → 내용입니다. */
+.glass-backdrop {
+  display: none;
+}
+
+html.glass .widget {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: transparent;
+  /* 테두리 칸은 overflow 클립 밖이라 캔버스·틴트가 덮지 못해, 흐리지 않은 화면이 1px 비칩니다.
+     테두리를 틴트 층의 inset 그림자로 옮기고 그만큼 안쪽 여백을 늘립니다. */
+  border: 0;
+  padding: 11px 13px 9px;
+}
+
+html.glass .widget::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  corner-shape: squircle;
+  background: var(--bg-glass);
+  box-shadow: inset 0 0 0 1px var(--border);
+  pointer-events: none;
+}
+
+html.glass .glass-backdrop {
+  display: block;
+  position: absolute;
+  z-index: -2;
+  filter: blur(var(--glass-blur, 12px));
+  pointer-events: none;
+}
+
+/* Windows 「투명 효과」를 끄면 흐린 배경을 숨기고 원래 카드 투명도로 돌아갑니다. */
+@media (prefers-reduced-transparency: reduce) {
+  html.glass .widget::before {
+    background: var(--bg);
+  }
+
+  html.glass .glass-backdrop {
+    display: none;
+  }
 }
 
 .header,
@@ -69,6 +123,12 @@ body {
 /* IP가 어긋나 있으면 테두리로도 알립니다. 위젯을 흘끗 봐도 눈에 띄어야 합니다. */
 .widget.attention {
   border-color: rgba(224, 169, 91, 0.45);
+}
+
+/* 배경 흐림에서는 테두리가 틴트 층의 inset 그림자라 거기에 칠합니다. 흐린 배경 위에서도
+   보이도록 조금 진하게 둡니다. */
+html.glass .widget.attention::before {
+  box-shadow: inset 0 0 0 1px rgba(224, 169, 91, 0.75);
 }
 
 .domains {
@@ -138,6 +198,11 @@ body {
   cursor: pointer;
   background: rgba(255, 255, 255, 0.08);
   color: var(--fg);
+}
+
+/* 흐린 배경이 밝으면 카드도 조금 밝아져 버튼 면이 묻힙니다. 경고(attention) 색은 그대로 둡니다. */
+html.glass .update-btn:not(.attention) {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .update-btn:hover {
@@ -484,6 +549,32 @@ body.settings-window-body {
 
 .settings-toggle input {
   accent-color: var(--fill);
+}
+
+.settings-range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.settings-range input {
+  flex: 1;
+  accent-color: var(--fill);
+}
+
+.settings-range output {
+  min-width: 3.2em;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-range:has(input:disabled) {
+  opacity: 0.5;
 }
 
 /* 창이 화면보다 짧아도 닫기는 늘 보이게 아래에 붙여 둡니다. 위쪽은 흐리게 섞어

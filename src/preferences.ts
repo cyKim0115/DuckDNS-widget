@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export const ALWAYS_ON_TOP_KEY = "duckdns-always-on-top";
+export const GLASS_KEY = "duckdns-glass";
+export const GLASS_BLUR_KEY = "duckdns-glass-blur";
 
 /**
  * 위젯과 설정 창은 같은 origin(tauri://localhost)이라 localStorage를 공유합니다.
@@ -21,4 +23,35 @@ export function saveAlwaysOnTop(enabled: boolean) {
 export async function applyAlwaysOnTop(enabled: boolean) {
   saveAlwaysOnTop(enabled);
   await invoke("set_always_on_top", { enabled });
+}
+
+/** 지원하지 않는 Windows에서는 Rust가 알아서 끄므로, 비어 있으면 켬으로 봅니다. */
+export function loadGlass(): boolean {
+  return localStorage.getItem(GLASS_KEY) !== "false";
+}
+
+export function saveGlass(enabled: boolean) {
+  localStorage.setItem(GLASS_KEY, enabled ? "true" : "false");
+}
+
+/** 저장하고 위젯 창에 반영합니다. 실제로 켜졌는지 돌려줍니다. */
+export async function applyGlass(enabled: boolean): Promise<boolean> {
+  saveGlass(enabled);
+  return invoke<boolean>("set_glass", { enabled });
+}
+
+/** 흐림 반경(CSS px). glass.rs의 MAX_BLUR_PX, 설정 슬라이더 max와 같아야 합니다. */
+export const MAX_GLASS_BLUR = 32;
+const DEFAULT_GLASS_BLUR = 12;
+
+export function loadGlassBlur(): number {
+  const raw = localStorage.getItem(GLASS_BLUR_KEY);
+  const value = raw === null ? NaN : Number(raw);
+  return Number.isNaN(value) ? DEFAULT_GLASS_BLUR : Math.min(MAX_GLASS_BLUR, Math.max(0, value));
+}
+
+/** 저장하고 위젯 창에 반영합니다. Rust가 캡처 여백을 맞추고 위젯에 반경을 알립니다. */
+export async function applyGlassBlur(px: number) {
+  localStorage.setItem(GLASS_BLUR_KEY, String(px));
+  await invoke("set_glass_blur", { px });
 }

@@ -880,6 +880,8 @@ dependencies = [
  "tauri-plugin-window-state",
  "thiserror 2.0.21",
  "ureq",
+ "windows",
+ "windows-version",
  "winreg 0.55.0",
 ]
 

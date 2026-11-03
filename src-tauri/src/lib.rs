@@ -1,5 +1,6 @@
 mod config;
 mod duckdns;
+mod glass;
 mod install;
 mod tray;
 
@@ -115,6 +116,33 @@ fn set_always_on_top(app: tauri::AppHandle, enabled: bool) -> Result<(), String>
     window.set_always_on_top(enabled).map_err(|e| e.to_string())
 }
 
+/// 설정은 웹뷰(localStorage)에 있어서, 위젯 부팅과 설정 창이 이걸로 창에 반영합니다.
+/// 실제로 켜졌는지 돌려주고 위젯 창에도 알려, 카드 투명도를 효과 상태에 맞춥니다.
+#[tauri::command]
+fn set_glass(app: tauri::AppHandle, enabled: bool) -> Result<bool, String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    let applied = glass::apply(&window, enabled);
+    window
+        .emit("glass-applied", applied)
+        .map_err(|e| e.to_string())?;
+    Ok(applied)
+}
+
+/// 흐림 반경(CSS px). 캡처 여백을 맞추고, 위젯 창이 CSS blur 반경을 바꾸도록 알립니다.
+#[tauri::command]
+fn set_glass_blur(app: tauri::AppHandle, px: f64) -> Result<(), String> {
+    glass::set_blur(px);
+    app.emit_to("main", "glass-blur", px.clamp(0.0, glass::MAX_BLUR_PX))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn glass_supported() -> bool {
+    glass::supported()
+}
+
 #[tauri::command]
 fn is_dev_build() -> bool {
     cfg!(debug_assertions)
@@ -163,6 +191,10 @@ pub fn run() {
                 .with_denylist(&[SETTINGS_LABEL])
                 .build(),
         )
+        // 배경 흐림 캡처 프레임. 위젯 페이지가 http://glassbg.localhost/frame 으로 받아 갑니다.
+        .register_uri_scheme_protocol("glassbg", |ctx, request| {
+            glass::frame_response(ctx.webview_label(), request)
+        })
         .invoke_handler(tauri::generate_handler![
             get_status,
             update_now,
@@ -179,9 +211,19 @@ pub fn run() {
             disable_autostart,
             is_autostart_enabled,
             install_release_copy,
-            set_always_on_top
+            set_always_on_top,
+            set_glass,
+            set_glass_blur,
+            glass_supported
         ])
         .on_window_event(|window, event| {
+            if window.label() == "main" {
+                // 배경 흐림은 창 뒤를 캡처하므로, 옮기거나 크기가 바뀌면 바로 다시 찍습니다.
+                if matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_)) {
+                    glass::wake();
+                }
+                return;
+            }
             if window.label() != SETTINGS_LABEL {
                 return;
             }
